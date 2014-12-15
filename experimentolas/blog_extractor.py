@@ -7,27 +7,26 @@ from collections import namedtuple
 
 
 Blog = namedtuple('Blog', ['title', 'subtitle', 'url', 'posts'])
-Post = namedtuple('Post', ['title', 'subtitle', 'image_url', 'popularity',
-                           'data'])
+Post = namedtuple('Post', ['id', 'title', 'subtitle', 'image_url', 'content'])
 
 
 class BlogException(Exception):
     pass
 
 
-def get_blog_data_from(url):
+def get_blog_data_from(url, page_requester):
     pass
 
 
-def iterate_all_pages(base_url):
+def all_pages(base_url):
     pass
 
 
-def get_posts_data_from(page):
+def get_all_post_data_from(page_html):
     pass
 
 
-def posts_in(page):
+def posts_in(page_parser):
     pass
 
 
