@@ -18,7 +18,7 @@ def get_blog_data_from(url, page_requester):
     pass
 
 
-def all_pages(base_url):
+def find_all_pages(base_url):
     pass
 
 
@@ -26,7 +26,7 @@ def get_all_post_data_from(page_html):
     pass
 
 
-def posts_in(page_parser):
+def find_all_posts(page_parser):
     pass
 
 

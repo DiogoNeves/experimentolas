@@ -65,11 +65,11 @@ def test_returns_data():
 
 def test_empty_blog_url_has_no_pages():
     with pytest.raises(StopIteration):
-        all_pages('')
+        find_all_pages('')
 
 
 def test_iterator_increments(blog_url='http://someblog.net'):
-    page_it = all_pages(blog_url)
+    page_it = find_all_pages(blog_url)
     assert next(page_it) == blog_url + '/page/1'
     assert next(page_it) == blog_url + '/page/2'
 
