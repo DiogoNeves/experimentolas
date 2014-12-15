@@ -11,5 +11,5 @@ What are the ingredients of a successful online text and how they change over ti
 
 # Contributors
 
-@DiogoNeves
+Diogo Neves  
 Marco Neves
