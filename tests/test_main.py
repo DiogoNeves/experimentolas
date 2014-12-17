@@ -43,8 +43,14 @@ single_blog_data = Blog(title='Some Blog', subtitle='',
 empty_parser = BeautifulSoup('')
 
 
-def mock_page_requester_wrapper(content):
-    return (lambda url: page_html % content)
+def mock_page_requester_wrapper(content, max_requests=10):
+    def page_requester(url):
+        if page_requester.times_requested < max_requests:
+            page_requester.times_requested += 1
+            return page_html % content
+
+    page_requester.times_requested = 0
+    return page_requester
 
 
 def null_requester(url):
@@ -72,6 +78,12 @@ def test_returns_data():
     requester = mock_page_requester_wrapper(single_post_page_html)
     blog = get_blog_data_from('http://someblog.net', requester, 1)
     assert blog == single_blog_data
+
+
+def test_blog_stops_on_empty_page():
+    requester = mock_page_requester_wrapper(single_post_page_html, 1)
+    get_blog_data_from('http://someblog.net', requester, 10)
+    assert requester.times_requested == 1
 
 
 def test_iterator_increments(blog_url='http://someblog.net'):

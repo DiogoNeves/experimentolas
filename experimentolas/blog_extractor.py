@@ -8,12 +8,16 @@ import itertools
 import rfc3987 as iri
 import HTMLParser
 from bs4 import BeautifulSoup
+import requests
+from requests.exceptions import RequestException
 
 
 Blog = namedtuple('Blog', ['title', 'subtitle', 'url', 'posts'])
 empty_blog = Blog('', '', '', [])
 Post = namedtuple('Post', ['id', 'title', 'subtitle', 'image_url', 'content'])
 empty_post = Post('', '', '', '', '')
+
+empty_html = ''
 
 
 class BlogException(Exception):
@@ -23,6 +27,23 @@ class BlogException(Exception):
 def _is_valid_url(url):
     iri_match = iri.match(url, rule='absolute_IRI')
     return iri_match is not None
+
+
+def page_requester(url):
+    assert _is_valid_url(url)
+
+    try:
+        return _request_page(url)
+    except RequestException:
+        return empty_html
+
+
+def _request_page(url):
+    response = requests.get(url)
+    if response and response.ok:
+        return response.text
+    else:
+        return empty_html
 
 
 def get_blog_data_from(url, page_requester, page_limit):
