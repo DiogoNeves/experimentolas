@@ -20,6 +20,10 @@ empty_post = Post('', '', '', '', '')
 empty_parser = BeautifulSoup('')
 
 
+def get_parser(content_html):
+    return BeautifulSoup(content_html)
+
+
 class BlogException(Exception):
     pass
 
@@ -35,13 +39,13 @@ def page_requester(url):
     try:
         return _request_page(url)
     except RequestException:
-        return empty_html
+        return empty_parser
 
 
 def _request_page(url):
     response = requests.get(url)
     if response and response.ok:
-        return BeautifulSoup(response.text)
+        return get_parser(response.text)
     else:
         return empty_parser
 
@@ -49,8 +53,15 @@ def _request_page(url):
 def get_blog_data_from(url, page_requester, max_pages):
     def get_blog_title():
         blog_parser = page_requester(url)
-        title_element = blog_parser.find('h1', 'site-title')
-        return title_element.text if title_element else ''
+        valid_attributes = ['id', 'class']
+        valid_classes = ['site-title', 'blog-title']
+        title = ''
+        for title_query in itertools.product(valid_attributes, valid_classes):
+            title_element = blog_parser.find('h1', dict([title_query]))
+            if title_element:
+                title = title_element.text
+                break
+        return title
 
     if not url:
         return empty_blog
@@ -90,7 +101,7 @@ def iterate_pages(base_url, page_requester, max_pages):
 
 def get_all_post_data_from(page_parser):
     def get_content_parser():
-        return page_parser.find('main') or BeautifulSoup('')
+        return page_parser.find('main') or empty_parser
 
     content_parser = get_content_parser()
     posts = find_all_posts(content_parser)
