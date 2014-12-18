@@ -49,7 +49,8 @@ def _request_page(url):
 def get_blog_data_from(url, page_requester, max_pages):
     def get_blog_title():
         blog_parser = page_requester(url)
-        return blog_parser.find('h1', 'site-title').text
+        title_element = blog_parser.find('h1', 'site-title')
+        return title_element.text if title_element else ''
 
     if not url:
         return empty_blog

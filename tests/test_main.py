@@ -9,7 +9,9 @@ from experimentolas.blog_extractor import get_blog_data_from, \
     try_get_post_data_from
 
 
-page_html = '<html><body><h1 class="site-title">Some Blog</h1>%s</body></html>'
+page_html = '<html><body><h1 class="site-title">%s</h1>%s</body></html>'
+
+no_title_page_html = '<html><body>%s</body></html>'
 
 
 single_post_html = """<article id="post-001">
@@ -40,11 +42,18 @@ single_blog_data = Blog(title='Some Blog', subtitle='',
                         url='http://someblog.net', posts=[single_post_data])
 
 
-def mock_page_requester_wrapper(content, max_requests=10):
+def mock_page_requester_wrapper(content, site_title='Some Blog',
+                                max_requests=10):
+    def get_page_html():
+        if site_title:
+            return page_html % (site_title, content)
+        else:
+            return no_title_page_html % content
+
     def page_requester(url):
         if page_requester.times_requested < max_requests:
             page_requester.times_requested += 1
-            return BeautifulSoup(page_html % content)
+            return BeautifulSoup(get_page_html())
         else:
             return empty_parser
 
@@ -71,6 +80,14 @@ def test_invalid_url_raises():
         get_blog_data_from(invalid_url, null_requester, 10)
 
     assert ex_info.value.message == 'Invalid blog url "%s"' % invalid_url
+
+
+def test_no_title_returns_data():
+    requester = mock_page_requester_wrapper(single_post_page_html,
+                                            site_title='')
+    blog = get_blog_data_from('http://someblog.net', requester, 1)
+    assert blog.title == ''
+    assert len(blog.posts) == 1
 
 
 def test_returns_data():
@@ -101,7 +118,8 @@ def test_iterator_stops():
 
 
 def test_blog_stops_on_empty_page():
-    requester = mock_page_requester_wrapper(single_post_page_html, 1)
+    requester = mock_page_requester_wrapper(single_post_page_html, 'Some Blog',
+                                            1)
     page_it = iterate_pages('http://someblog.net', requester, 2)
     next(page_it)
     assert_no_more_items(page_it)
