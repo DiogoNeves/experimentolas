@@ -5,6 +5,7 @@
 
 from collections import namedtuple
 import itertools
+import re
 import rfc3987 as iri
 import HTMLParser
 from bs4 import BeautifulSoup
@@ -13,9 +14,9 @@ from requests.exceptions import RequestException
 
 
 Blog = namedtuple('Blog', ['title', 'subtitle', 'url', 'posts'])
-empty_blog = Blog('', '', '', [])
-Post = namedtuple('Post', ['id', 'title', 'subtitle', 'image_url', 'content'])
-empty_post = Post('', '', '', '', '')
+empty_blog = Blog('', '', '', ())
+Post = namedtuple('Post', ['id', 'title', 'subtitle', 'images', 'content'])
+empty_post = Post('', '', '', (), '')
 
 empty_parser = BeautifulSoup('')
 
@@ -73,7 +74,7 @@ def get_blog_data_from(url, page_requester, max_pages):
     posts = [post for page in page_iterator
              for post in get_all_post_data_from(page)]
 
-    return Blog(title=title or '', subtitle='', url=url, posts=posts)
+    return Blog(title=title or '', subtitle='', url=url, posts=tuple(posts))
 
 
 def iterate_pages(base_url, page_requester, max_pages):
@@ -100,20 +101,16 @@ def iterate_pages(base_url, page_requester, max_pages):
 
 
 def get_all_post_data_from(page_parser):
-    def get_content_parser():
-        return page_parser.find('main') or empty_parser
-
-    content_parser = get_content_parser()
-    posts = find_all_posts(content_parser)
-    return [try_get_post_data_from(post) for post in posts]
+    return tuple([try_get_post_data_from(post)
+            for post in iterate_all_posts(page_parser)])
 
 
-def find_all_posts(content_parser):
-    post_tag = 'article'
-    current_post = content_parser.find(post_tag)
+def iterate_all_posts(content_parser):
+    post_matcher = re.compile('^post-')
+    current_post = content_parser.find(id=post_matcher)
     while current_post is not None:
         yield current_post
-        current_post = current_post.find_next(post_tag)
+        current_post = current_post.find_next(id=post_matcher)
 
 
 def try_get_post_data_from(post_parser):
@@ -125,14 +122,13 @@ def try_get_post_data_from(post_parser):
 
 def _get_post_data_from(post_parser):
     post_id = post_parser['id']
-    header = post_parser.find('header')
+    header = post_parser.find(class_='entry-title')
     title = header.find('a').text
-    image = header.find('img')
-    if image and 'src' in image.attrs:
-        image = image['src']
+    images = [image['src'] for image in post_parser.find_all('img')
+              if 'src' in image.attrs]
     content_parser = post_parser.find('div', 'entry-content')
     content = ''.join(map(str, content_parser.children))
-    return Post(id=post_id, title=title, subtitle='', image_url=image or '',
+    return Post(id=post_id, title=title, subtitle='', images=tuple(images),
                 content=content)
 
 

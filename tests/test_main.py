@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from experimentolas.blog_extractor import Post, Blog, BlogException, \
     empty_blog, empty_post, empty_parser
 from experimentolas.blog_extractor import get_blog_data_from, \
-    iterate_pages, get_all_post_data_from, find_all_posts, \
+    iterate_pages, get_all_post_data_from, iterate_all_posts, \
     try_get_post_data_from, get_parser
 
 
@@ -31,12 +31,12 @@ single_post_page_html = '<main>%s</main>' % single_post_html
 
 
 single_post_data = Post(id='post-001', title='Some Post', subtitle='',
-                        image_url='http://someblog.net/test.jpg',
+                        images=('http://someblog.net/test.jpg',),
                         content='<p>Some text.</p>')
 
 
 single_blog_data = Blog(title='Some Blog', subtitle='',
-                        url='http://someblog.net', posts=[single_post_data])
+                        url='http://someblog.net', posts=(single_post_data,))
 
 
 def get_title(attribute, title_class):
@@ -150,28 +150,28 @@ def test_blog_stops_on_empty_page():
 
 
 def test_empty_html_has_no_posts():
-    assert get_all_post_data_from(empty_parser) == []
+    assert get_all_post_data_from(empty_parser) == ()
 
 
 def test_single_post_in_page():
     page_parser = default_requester('http://someblog.net')
-    assert get_all_post_data_from(page_parser) == [single_post_data]
+    assert get_all_post_data_from(page_parser) == (single_post_data,)
 
 
 def test_no_posts_in_empty_parser():
-    assert_no_more_items(find_all_posts(empty_parser))
+    assert_no_more_items(iterate_all_posts(empty_parser))
 
 
 def test_single_post_returns_only_one():
     single_post_parser = get_parser(single_post_page_html)
-    post_it = find_all_posts(single_post_parser)
+    post_it = iterate_all_posts(single_post_parser)
     next(post_it)
     assert_no_more_items(post_it)
 
 
 def test_single_post_is_found():
     single_post_parser = get_parser(single_post_page_html)
-    assert next(find_all_posts(single_post_parser)) == \
+    assert next(iterate_all_posts(single_post_parser)) == \
         get_parser(single_post_html).find('article')
 
 
