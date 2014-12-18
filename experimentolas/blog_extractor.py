@@ -17,7 +17,7 @@ empty_blog = Blog('', '', '', [])
 Post = namedtuple('Post', ['id', 'title', 'subtitle', 'image_url', 'content'])
 empty_post = Post('', '', '', '', '')
 
-empty_html = ''
+empty_parser = BeautifulSoup('')
 
 
 class BlogException(Exception):
@@ -41,43 +41,50 @@ def page_requester(url):
 def _request_page(url):
     response = requests.get(url)
     if response and response.ok:
-        return response.text
+        return BeautifulSoup(response.text)
     else:
-        return empty_html
+        return empty_parser
 
 
-def get_blog_data_from(url, page_requester, page_limit):
-    def get_parser(html):
-        return BeautifulSoup(html)
+def get_blog_data_from(url, page_requester, max_pages):
+    def get_blog_title():
+        blog_parser = page_requester(url)
+        return blog_parser.find('h1', 'site-title').text
 
     if not url:
         return empty_blog
     if not _is_valid_url(url):
         raise BlogException('Invalid blog url "%s"' % url)
 
-    page_parser = None
-    posts = []
-    for page_url in find_all_page_urls(url, page_limit):
-        page_html = page_requester(page_url)
-        if page_html:
-            page_parser = get_parser(page_html)
-            posts.extend(get_all_post_data_from(page_parser))
-        else:
-            break
+    title = get_blog_title()
+    page_iterator = iterate_pages(url, page_requester, max_pages)
+    posts = [post for page in page_iterator
+             for post in get_all_post_data_from(page)]
 
-    if page_parser:
-        title = page_parser.find('h1', 'site-title').text
     return Blog(title=title or '', subtitle='', url=url, posts=posts)
 
 
-def find_all_page_urls(base_url, page_limit):
+def iterate_pages(base_url, page_requester, max_pages):
+    """max_pages is an int > 0"""
+
     def form_page_url(page):
         prefix_slash = '' if base_url.endswith('/') else '/'
         return '%s%spage/%d' % (base_url, prefix_slash, page)
 
     assert _is_valid_url(base_url)
-    assert page_limit > 0
-    return (form_page_url(i) for i in xrange(1, page_limit + 1))
+    assert max_pages > 0
+
+    page = 1
+    while page <= max_pages:
+        url = form_page_url(page)
+        page_parser = page_requester(url)
+        assert isinstance(page_parser, BeautifulSoup)
+
+        if page_parser != empty_parser:
+            yield page_parser
+        else:
+            return
+        page += 1
 
 
 def get_all_post_data_from(page_parser):
