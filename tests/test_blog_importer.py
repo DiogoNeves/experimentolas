@@ -1,12 +1,13 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
+import itertools
 import pytest
 from bs4 import BeautifulSoup
 from experimentolas.blog_extractor import Post, Blog, BlogException, \
     empty_blog, empty_post, empty_parser
 from experimentolas.blog_extractor import get_blog_data_from, \
     iterate_pages, get_all_post_data_from, iterate_all_posts, \
-    try_get_post_data_from, get_parser
+    try_get_post_data_from, get_parser, page_requester
 
 
 page_html = '<html><body>%s</body></html>'
@@ -183,3 +184,26 @@ def test_single_post_data():
     single_post_parser = get_parser(single_post_html)
     post = single_post_parser.find('article')
     assert try_get_post_data_from(post) == single_post_data
+
+
+@pytest.mark.integration_test
+def test_real_blogs():
+    blog_urls_to_test = ['http://certaspalavras.net']
+    test_results = [_test_real_blog(url) for url in blog_urls_to_test]
+    failed = list(itertools.compress(blog_urls_to_test,
+                                     [not result for result in test_results]))
+    num_passed = len(blog_urls_to_test) - len(failed)
+
+    assert len(failed) == 0, '%d blogs passed, %d failed\nFailed: %s' % \
+        (num_passed, len(failed), failed)
+
+
+def _test_real_blog(url):
+    blog = get_blog_data_from(url, page_requester, 1)
+    return bool(blog.title) and blog.url == url and len(blog.posts) > 1 and \
+        is_valid_post(blog.posts[0])
+
+
+def is_valid_post(post):
+    return post.id.startswith('post-') and bool(post.title) and \
+        isinstance(post.images, tuple) and bool(post.content)
