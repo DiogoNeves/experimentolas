@@ -3,9 +3,9 @@
 import itertools
 import pytest
 from bs4 import BeautifulSoup
-from experimentolas.blog_extractor import Post, Blog, BlogException, \
+from experimentolas.blog_importer import Post, Blog, BlogException, \
     empty_blog, empty_post, empty_parser
-from experimentolas.blog_extractor import get_blog_data_from, \
+from experimentolas.blog_importer import get_blog_data_from, \
     iterate_pages, get_all_post_data_from, iterate_all_posts, \
     try_get_post_data_from, get_parser, page_requester
 
