@@ -188,7 +188,8 @@ def test_single_post_data():
 
 @pytest.mark.integration_test
 def test_real_blogs():
-    blog_urls_to_test = ['http://certaspalavras.net']
+    blog_urls_to_test = ['http://certaspalavras.net',
+                         'http://whyevolutionistrue.wordpress.com/']
     test_results = [_test_real_blog(url) for url in blog_urls_to_test]
     failed = list(itertools.compress(blog_urls_to_test,
                                      [not result for result in test_results]))
