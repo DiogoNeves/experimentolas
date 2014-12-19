@@ -5,5 +5,5 @@ python:
 install: "pip install -r requirements.txt"
 # command to run tests
 before_script:
-    - "export PYTHONPATH:.:$PYTHONPATH"
+    - "export PYTHONPATH=$TRAVIS_BUILD_DIR:$PYTHONPATH"
 script: py.test -vv
