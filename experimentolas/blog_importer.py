@@ -13,10 +13,10 @@ import requests
 from requests.exceptions import RequestException
 
 
-Blog = namedtuple('Blog', ['title', 'subtitle', 'url', 'posts'])
-empty_blog = Blog('', '', '', ())
-Post = namedtuple('Post', ['id', 'title', 'subtitle', 'images', 'content'])
-empty_post = Post('', '', '', (), '')
+Blog = namedtuple('Blog', ['title', 'url', 'posts'])
+empty_blog = Blog('', '', ())
+Post = namedtuple('Post', ['id', 'title', 'images', 'content'])
+empty_post = Post('', '', (), '')
 
 empty_parser = BeautifulSoup('')
 
@@ -74,7 +74,7 @@ def get_blog_data_from(url, page_requester, max_pages):
     posts = [post for page in page_iterator
              for post in get_all_post_data_from(page)]
 
-    return Blog(title=title or '', subtitle='', url=url, posts=tuple(posts))
+    return Blog(title=title or '', url=url, posts=tuple(posts))
 
 
 def iterate_pages(base_url, page_requester, max_pages):
@@ -128,7 +128,7 @@ def _get_post_data_from(post_parser):
               if 'src' in image.attrs]
     content_parser = post_parser.find('div', 'entry-content')
     content = ''.join(map(str, content_parser.children))
-    return Post(id=post_id, title=title, subtitle='', images=tuple(images),
+    return Post(id=post_id, title=title, images=tuple(images),
                 content=content)
 
 

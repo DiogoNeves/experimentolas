@@ -31,13 +31,13 @@ single_post_html = """<article id="post-001">
 single_post_page_html = '<main>%s</main>' % single_post_html
 
 
-single_post_data = Post(id='post-001', title='Some Post', subtitle='',
+single_post_data = Post(id='post-001', title='Some Post',
                         images=('http://someblog.net/test.jpg',),
                         content='<p>Some text.</p>')
 
 
-single_blog_data = Blog(title='Some Blog', subtitle='',
-                        url='http://someblog.net', posts=(single_post_data,))
+single_blog_data = Blog(title='Some Blog', url='http://someblog.net',
+                        posts=(single_post_data,))
 
 
 def get_title(attribute, title_class):
@@ -57,16 +57,16 @@ def get_page_html(title, content):
     return page_html % (title + content)
 
 
-def mock_page_requester_wrapper(page_html, max_requests=10):
-    def page_requester(url):
-        if page_requester.times_requested < max_requests:
-            page_requester.times_requested += 1
-            return get_parser(page_html)
+def mock_page_requester_wrapper(html, max_requests=10):
+    def _page_requester(url):
+        if _page_requester.times_requested < max_requests:
+            _page_requester.times_requested += 1
+            return get_parser(html)
         else:
             return empty_parser
 
-    page_requester.times_requested = 0
-    return page_requester
+    _page_requester.times_requested = 0
+    return _page_requester
 
 
 def null_requester(url):
