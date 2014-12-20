@@ -4,6 +4,9 @@
 """Right now this only supports wordpress. Working on it."""
 
 from collections import namedtuple
+from datetime import datetime
+from dateutil.parser import parse
+from dateutil.tz import tzoffset, tzlocal
 import itertools
 import re
 import rfc3987 as iri
@@ -13,12 +16,33 @@ import requests
 from requests.exceptions import RequestException
 
 
+null_date = datetime.fromordinal(1).replace(tzinfo=tzlocal())
+
 Blog = namedtuple('Blog', ['title', 'url', 'posts'])
 empty_blog = Blog('', '', ())
-Post = namedtuple('Post', ['id', 'title', 'images', 'content'])
-empty_post = Post('', '', (), '')
+Post = namedtuple('Post', ['id', 'title', 'date', 'images', 'content'])
+empty_post = Post('', '', null_date, (), '')
 
 empty_parser = BeautifulSoup('')
+
+
+def try_parse_date(date_string):
+    try:
+        return _parse_date(date_string)
+    except (ValueError, AttributeError):
+        return null_date
+
+
+def _parse_date(date_string):
+    if not date_string:
+        return null_date
+
+    parsed = parse(date_string, default=null_date)
+    # pylint: disable=E1103
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=tzlocal())
+
+    return parsed
 
 
 def get_parser(content_html):
@@ -29,13 +53,13 @@ class BlogException(Exception):
     pass
 
 
-def _is_valid_url(url):
+def valid_url(url):
     iri_match = iri.match(url, rule='absolute_IRI')
     return iri_match is not None
 
 
 def page_requester(url):
-    assert _is_valid_url(url)
+    assert valid_url(url)
 
     try:
         return _request_page(url)
@@ -51,9 +75,9 @@ def _request_page(url):
         return empty_parser
 
 
-def get_blog_data_from(url, page_requester, max_pages):
+def get_blog_data_from(url, requester, max_pages):
     def get_blog_title():
-        blog_parser = page_requester(url)
+        blog_parser = requester(url)
         valid_attributes = ['id', 'class']
         valid_classes = ['site-title', 'blog-title']
         title = ''
@@ -66,31 +90,31 @@ def get_blog_data_from(url, page_requester, max_pages):
 
     if not url:
         return empty_blog
-    if not _is_valid_url(url):
+    if not valid_url(url):
         raise BlogException('Invalid blog url "%s"' % url)
 
     title = get_blog_title()
-    page_iterator = iterate_pages(url, page_requester, max_pages)
+    page_iterator = iterate_pages(url, requester, max_pages)
     posts = [post for page in page_iterator
              for post in get_all_post_data_from(page)]
 
     return Blog(title=title or '', url=url, posts=tuple(posts))
 
 
-def iterate_pages(base_url, page_requester, max_pages):
+def iterate_pages(base_url, requester, max_pages):
     """max_pages is an int > 0"""
 
     def form_page_url(page):
         prefix_slash = '' if base_url.endswith('/') else '/'
         return '%s%spage/%d' % (base_url, prefix_slash, page)
 
-    assert _is_valid_url(base_url)
+    assert valid_url(base_url)
     assert max_pages > 0
 
     page = 1
     while page <= max_pages:
         url = form_page_url(page)
-        page_parser = page_requester(url)
+        page_parser = requester(url)
         assert isinstance(page_parser, BeautifulSoup)
 
         if page_parser != empty_parser:
@@ -102,7 +126,7 @@ def iterate_pages(base_url, page_requester, max_pages):
 
 def get_all_post_data_from(page_parser):
     return tuple([try_get_post_data_from(post)
-            for post in iterate_all_posts(page_parser)])
+                  for post in iterate_all_posts(page_parser)])
 
 
 def iterate_all_posts(content_parser):
@@ -124,12 +148,34 @@ def _get_post_data_from(post_parser):
     post_id = post_parser['id']
     header = post_parser.find(class_='entry-title')
     title = header.find('a').text
+    date = _get_post_date(post_parser)
     images = [image['src'] for image in post_parser.find_all('img')
               if 'src' in image.attrs]
     content_parser = post_parser.find('div', 'entry-content')
     content = ''.join(map(str, content_parser.children))
-    return Post(id=post_id, title=title, images=tuple(images),
+    return Post(id=post_id, title=title, date=date, images=tuple(images),
                 content=content)
+
+
+def _get_post_date(post_parser):
+    date_element = _find_date_element(post_parser)
+    if date_element:
+        return _find_date_in(date_element.attrs.values())
+    else:
+        return null_date
+
+
+def _find_date_element(post_parser):
+    return post_parser.find(class_='published')
+
+
+def _find_date_in(attribute_values):
+    date = null_date
+    for parsed_date in itertools.imap(try_parse_date, attribute_values):
+        if parsed_date != null_date:
+            date = parsed_date
+            break
+    return date
 
 
 def main():

@@ -2,18 +2,39 @@
 # -*- coding: utf-8 -*-
 import itertools
 import pytest
+from datetime import datetime
+from dateutil.tz import tzlocal
 from bs4 import BeautifulSoup
 from experimentolas.blog_importer import Post, Blog, BlogException, \
-    empty_blog, empty_post, empty_parser
+    empty_blog, empty_post, empty_parser, null_date
 from experimentolas.blog_importer import get_blog_data_from, \
     iterate_pages, get_all_post_data_from, iterate_all_posts, \
-    try_get_post_data_from, get_parser, page_requester
+    try_get_post_data_from, get_parser, page_requester, try_parse_date, \
+    valid_url
 
 
 page_html = '<html><body>%s</body></html>'
 
 
 single_post_html = """<article id="post-001">
+    <header>
+        <h1 class="entry-title">
+            <a href="some-link">Some Post</a>
+        </h1>
+        <div class="post-thumbnail">
+            <a href="http://www.someblog.net/2014/12/14/some-post/">
+                <img src="http://someblog.net/test.jpg">
+            </a>
+        </div>
+        <span class="entry-date published" time="2014-12-15T22:29:25+00:00">
+            15 de Dezembro de 2014
+        </span>
+    </header>
+    <div class="entry-content"><p>Some text.</p></div>
+</article>
+"""
+
+no_date_post_html = """<article id="post-001">
     <header>
         <h1 class="entry-title">
             <a href="some-link">Some Post</a>
@@ -32,8 +53,14 @@ single_post_page_html = '<main>%s</main>' % single_post_html
 
 
 single_post_data = Post(id='post-001', title='Some Post',
+                        date=try_parse_date('2014-12-15T22:29:25+00:00'),
                         images=('http://someblog.net/test.jpg',),
                         content='<p>Some text.</p>')
+
+no_date_post_data = Post(id='post-001', title='Some Post',
+                         date=null_date,
+                         images=('http://someblog.net/test.jpg',),
+                         content='<p>Some text.</p>')
 
 
 single_blog_data = Blog(title='Some Blog', url='http://someblog.net',
@@ -80,6 +107,45 @@ def default_requester(url):
 def assert_no_more_items(iterator):
     with pytest.raises(StopIteration):
         next(iterator)
+
+
+def test_empty_returns_null_date():
+    assert try_parse_date('') == null_date
+
+
+def test_invalid_returns_null_date():
+    assert try_parse_date('invalid') == null_date
+
+
+def test_no_timezone_returns_localtz():
+    # pylint: disable=E1103
+    assert try_parse_date('0001-01-01T00:00:00').tzinfo == tzlocal()
+
+
+def test_different_locales_match():
+    assert try_parse_date('0001-01-01T00:00:00+00:00') == \
+        try_parse_date('0001-01-01T01:00:00+01:00')
+
+
+def test_empty_url_is_not_valid():
+    assert not valid_url('')
+
+
+def test_invalid_is_invalid():
+    assert not valid_url('invalid')
+
+
+def test_relative_is_invalid():
+    assert not valid_url('/relative')
+
+
+def test_valid_is_valid():
+    assert valid_url('http://linguas.pt')
+    assert valid_url('http://linguas.pt/')
+
+
+def test_query_params_is_valid():
+    assert valid_url('http://linguas.pt/test?param=1')
 
 
 def test_empty_blog_url_has_no_data():
@@ -186,25 +252,29 @@ def test_single_post_data():
     assert try_get_post_data_from(post) == single_post_data
 
 
+def test_no_date_post_data():
+    no_date_post_parser = get_parser(no_date_post_html)
+    post = no_date_post_parser.find('article')
+    assert try_get_post_data_from(post) == no_date_post_data
+
+
+@pytest.fixture(scope='module', params=[
+    'http://whyevolutionistrue.wordpress.com/', 'http://www.linguas.pt/'])
+def real_blog_data(request):
+    return get_blog_data_from(request.param, page_requester, max_pages=1)
+
+
 @pytest.mark.integration_test
-def test_real_blogs():
-    blog_urls_to_test = ['http://certaspalavras.net',
-                         'http://whyevolutionistrue.wordpress.com/']
-    test_results = [_test_real_blog(url) for url in blog_urls_to_test]
-    failed = list(itertools.compress(blog_urls_to_test,
-                                     [not result for result in test_results]))
-    num_passed = len(blog_urls_to_test) - len(failed)
-
-    assert len(failed) == 0, '%d blogs passed, %d failed\nFailed: %s' % \
-        (num_passed, len(failed), failed)
+def test_real_blog(real_blog_data):
+    assert real_blog_data.title
+    assert valid_url(real_blog_data.url)
+    assert len(real_blog_data.posts) > 1
+    assert_valid_post(real_blog_data.posts[0])
 
 
-def _test_real_blog(url):
-    blog = get_blog_data_from(url, page_requester, 1)
-    return bool(blog.title) and blog.url == url and len(blog.posts) > 1 and \
-        is_valid_post(blog.posts[0])
-
-
-def is_valid_post(post):
-    return post.id.startswith('post-') and bool(post.title) and \
-        isinstance(post.images, tuple) and bool(post.content)
+def assert_valid_post(post):
+    assert post.id.startswith('post-')
+    assert post.title
+    assert isinstance(post.date, datetime) and post.date != null_date
+    assert isinstance(post.images, tuple)
+    assert post.content
