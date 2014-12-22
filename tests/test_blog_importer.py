@@ -1,6 +1,5 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-import itertools
 import pytest
 from datetime import datetime
 from dateutil.tz import tzlocal
@@ -259,12 +258,13 @@ def test_no_date_post_data():
 
 
 @pytest.fixture(scope='module', params=[
-    'http://whyevolutionistrue.wordpress.com/', 'http://www.linguas.pt/'])
+    'http://whyevolutionistrue.wordpress.com/'])
 def real_blog_data(request):
     return get_blog_data_from(request.param, page_requester, max_pages=1)
 
 
 @pytest.mark.integration_test
+# pylint: disable=W0621
 def test_real_blog(real_blog_data):
     assert real_blog_data.title
     assert valid_url(real_blog_data.url)
