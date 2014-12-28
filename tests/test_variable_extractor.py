@@ -10,8 +10,7 @@ from experimentolas.variable_extractor import Variable, VariableExtractor, \
 from experimentolas.blog_importer import Post, empty_post
 
 
-sample_post = Post('post-001', 'test_title', datetime.now, (),
-                   'this is a test. yes!')
+sample_post = Post('test_title', datetime.now, (), 'this is a test. yes!')
 sample_post_word_count = 5
 
 

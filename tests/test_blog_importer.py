@@ -51,12 +51,12 @@ no_date_post_html = """<article id="post-001">
 single_post_page_html = '<main>%s</main>' % single_post_html
 
 
-single_post_data = Post(id='post-001', title='Some Post',
+single_post_data = Post(title='Some Post',
                         date=try_parse_date('2014-12-15T22:29:25+00:00'),
                         images=('http://someblog.net/test.jpg',),
                         content='<p>Some text.</p>')
 
-no_date_post_data = Post(id='post-001', title='Some Post',
+no_date_post_data = Post(title='Some Post',
                          date=null_date,
                          images=('http://someblog.net/test.jpg',),
                          content='<p>Some text.</p>')
@@ -273,7 +273,6 @@ def test_real_blog(real_blog_data):
 
 
 def assert_valid_post(post):
-    assert post.id.startswith('post-')
     assert post.title
     assert isinstance(post.date, datetime) and post.date != null_date
     assert isinstance(post.images, tuple)

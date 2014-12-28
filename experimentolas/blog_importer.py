@@ -6,13 +6,14 @@
 from collections import namedtuple
 from datetime import datetime
 from dateutil.parser import parse
-from dateutil.tz import tzoffset, tzlocal
+from dateutil.tz import tzlocal
 import itertools
 import re
 import rfc3987 as iri
 import HTMLParser
 from bs4 import BeautifulSoup
 import requests
+from goose import Goose
 from requests.exceptions import RequestException
 
 
@@ -20,8 +21,8 @@ null_date = datetime.fromordinal(1).replace(tzinfo=tzlocal())
 
 Blog = namedtuple('Blog', ['title', 'url', 'posts'])
 empty_blog = Blog('', '', ())
-Post = namedtuple('Post', ['id', 'title', 'date', 'images', 'content'])
-empty_post = Post('', '', null_date, (), '')
+Post = namedtuple('Post', ['title', 'date', 'images', 'content'])
+empty_post = Post('', null_date, (), '')
 
 empty_parser = BeautifulSoup('')
 
@@ -145,41 +146,20 @@ def try_get_post_data_from(post_parser):
 
 
 def _get_post_data_from(post_parser):
-    post_id = post_parser['id']
-    header = post_parser.find(class_='entry-title')
-    title = header.find('a').text
-    date = _get_post_date(post_parser)
-    images = [image['src'] for image in post_parser.find_all('img')
-              if 'src' in image.attrs]
-    content_parser = post_parser.find('div', 'entry-content')
-    content = ''.join(map(str, content_parser.children))
-    return Post(id=post_id, title=title, date=date, images=tuple(images),
-                content=content)
+    if len(post_parser) == 0:
+        return empty_post
 
-
-def _get_post_date(post_parser):
-    date_element = _find_date_element(post_parser)
-    if date_element:
-        return _find_date_in(date_element.attrs.values())
+    extractor = Goose()
+    article = extractor.extract(raw_html=str(post_parser))
+    title = article.title
+    date = _get_post_date(article)
+    if article.top_image is not None:
+        images = filter(lambda x: x and len(x) > 0, [article.top_image.src])
     else:
-        return null_date
+        images = []
+    content = article.cleaned_text
+    return Post(title=title, date=date, images=tuple(images), content=content)
 
 
-def _find_date_element(post_parser):
-    return post_parser.find(class_='published')
-
-
-def _find_date_in(attribute_values):
-    date = null_date
-    for parsed_date in itertools.imap(try_parse_date, attribute_values):
-        if parsed_date != null_date:
-            date = parsed_date
-            break
-    return date
-
-
-def main():
-    pass
-
-if __name__ == '__main__':
-    main()
+def _get_post_date(article):
+    return article.publish_date or null_date
